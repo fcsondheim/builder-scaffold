@@ -1,15 +1,15 @@
-import { Box, Flex, Heading } from "@radix-ui/themes";
-import { WalletStatus } from "./components/WalletStatus";
-import { abbreviateAddress, useConnection } from "@evefrontier/dapp-kit";
+import { abbreviateAddress, useConnection } from '@evefrontier/dapp-kit'
 import {
   useCurrentAccount,
   useCurrentNetwork,
   useDAppKit,
-} from "@mysten/dapp-kit-react";
-import { dAppKit as dAppKitInstance } from "./dappKit";
-import { NETWORKS } from "./networks";
-import { WalletActions } from "./components/WalletActions";
-import { AddressAlias } from "./components/AddressAlias";
+} from '@mysten/dapp-kit-react'
+import { Box, Flex, Heading } from '@radix-ui/themes'
+import { AddressAlias } from './components/AddressAlias'
+import { WalletActions } from './components/WalletActions'
+import { WalletStatus } from './components/WalletStatus'
+import { dAppKit as dAppKitInstance } from './dappKit'
+import { NETWORKS } from './networks'
 
 function App() {
   /**
@@ -20,23 +20,23 @@ function App() {
    * (@mysten/dapp-kit-react) → account (e.g. account.address) for UI. abbreviateAddress()
    * (@evefrontier/dapp-kit) for display.
    */
-  const { handleConnect, handleDisconnect } = useConnection();
-  const dappKit = useDAppKit(dAppKitInstance);
-  const account = useCurrentAccount({ dAppKit: dappKit });
-  const currentNetwork = useCurrentNetwork({ dAppKit: dappKit });
+  const { handleConnect, handleDisconnect } = useConnection()
+  const dappKit = useDAppKit(dAppKitInstance)
+  const account = useCurrentAccount({ dAppKit: dappKit })
+  const currentNetwork = useCurrentNetwork({ dAppKit: dappKit })
 
-  console.log("account", account);
+  console.log('account', account)
 
   return (
-    <Box style={{ padding: "20px" }}>
+    <Box style={{ padding: '20px' }}>
       <Flex
         position="sticky"
         px="4"
         py="2"
         direction="row"
         style={{
-          display: "flex",
-          justifyContent: "space-between",
+          display: 'flex',
+          justifyContent: 'space-between',
         }}
       >
         <Heading>EVE Frontier dApp Starter Template</Heading>
@@ -47,15 +47,11 @@ function App() {
             account?.address ? handleDisconnect() : handleConnect()
           }
         >
-          {account ? abbreviateAddress(account?.address) : "Connect Wallet"}
+          {account ? abbreviateAddress(account?.address) : 'Connect Wallet'}
         </button>
       </Flex>
 
-      <Flex
-        className="network-switch"
-        role="group"
-        aria-label="Network mode"
-      >
+      <Flex className="network-switch" role="group" aria-label="Network mode">
         {NETWORKS.map((network) => (
           <button
             key={network}
@@ -71,11 +67,11 @@ function App() {
       {/* STEP 3 — Same hooks (useConnection, useCurrentAccount) drive WalletStatus; state stays in sync. */}
       <WalletStatus />
 
-        <WalletActions />
+      <WalletActions />
 
-        <AddressAlias />
+      <AddressAlias />
     </Box>
-  );
+  )
 }
 
-export default App;
+export default App

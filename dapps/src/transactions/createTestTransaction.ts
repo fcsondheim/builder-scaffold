@@ -1,9 +1,9 @@
-import { coinWithBalance, Transaction } from "@mysten/sui/transactions";
+import { coinWithBalance, Transaction } from '@mysten/sui/transactions'
 
 export function createTestTransaction(recipient: string) {
-  const transaction = new Transaction();
+  const transaction = new Transaction()
 
-  transaction.transferObjects([coinWithBalance({ balance: 100 })], recipient);
+  transaction.transferObjects([coinWithBalance({ balance: 100 })], recipient)
 
-  return transaction;
+  return transaction
 }

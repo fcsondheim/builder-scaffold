@@ -1,7 +1,7 @@
-import { SuiGrpcClient } from "@mysten/sui/grpc";
-import { coinWithBalance, Transaction } from "@mysten/sui/transactions";
-import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519'
-import { fromBase64 } from "@mysten/sui/utils";
+import type { SuiGrpcClient } from '@mysten/sui/grpc'
+import type { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519'
+import { coinWithBalance, Transaction } from '@mysten/sui/transactions'
+import { fromBase64 } from '@mysten/sui/utils'
 
 /**
  * Address alias management PTBs (sui::address_alias).
@@ -14,16 +14,16 @@ import { fromBase64 } from "@mysten/sui/utils";
  */
 
 /** Shared AddressAliasState singleton. */
-export const ADDRESS_ALIAS_STATE = "0xa";
+export const ADDRESS_ALIAS_STATE = '0xa'
 
 /** `sui` framework package (0x2) — confirm the module lives here. */
-export const ADDRESS_ALIAS_MODULE = "0x2::address_alias";
+export const ADDRESS_ALIAS_MODULE = '0x2::address_alias'
 
 /** Fully-qualified type of the per-address AddressAliases owned object. */
-export const ADDRESS_ALIASES_TYPE = "0x2::address_alias::AddressAliases";
+export const ADDRESS_ALIASES_TYPE = '0x2::address_alias::AddressAliases'
 
 /** CLI examples use a 50,000,000 gas budget. */
-const GAS_BUDGET = 50_000_000;
+const GAS_BUDGET = 50_000_000
 
 /**
  * Enable alias configuration for the sender. Creates the caller's AddressAliases
@@ -32,15 +32,15 @@ const GAS_BUDGET = 50_000_000;
  * result and `tx.transferObjects([result], sender)`.
  */
 export function enableAliasTransaction(): Transaction {
-  const tx = new Transaction();
+  const tx = new Transaction()
 
   tx.moveCall({
     target: `${ADDRESS_ALIAS_MODULE}::enable`,
     arguments: [tx.object(ADDRESS_ALIAS_STATE)],
-  });
+  })
 
-  tx.setGasBudget(GAS_BUDGET);
-  return tx;
+  tx.setGasBudget(GAS_BUDGET)
+  return tx
 }
 
 /**
@@ -53,7 +53,7 @@ export function addAliasTransaction(
   aliasesObjectId: string,
   alias: string,
 ): Transaction {
-  const tx = new Transaction();
+  const tx = new Transaction()
 
   tx.moveCall({
     target: `${ADDRESS_ALIAS_MODULE}::add`,
@@ -62,10 +62,10 @@ export function addAliasTransaction(
       tx.object(aliasesObjectId),
       tx.pure.address(alias),
     ],
-  });
+  })
 
-  tx.setGasBudget(GAS_BUDGET);
-  return tx;
+  tx.setGasBudget(GAS_BUDGET)
+  return tx
 }
 
 /**
@@ -78,23 +78,23 @@ export async function aliasSignedTestTransaction(
   aliasKeypair: Ed25519Keypair, // the private key of the alias (Ed25519Keypair or base58 string)
   recipient: string,
 ) {
+  const tx = new Transaction()
+  console.log('Creating test transaction FROM aliased address:', aliasedAddress)
+  tx.setSender(aliasedAddress) // tx is FROM the aliased address
+  tx.setGasOwner(aliasedAddress) // gas also paid by it → one alias sig covers both
 
+  tx.transferObjects([coinWithBalance({ balance: 100 })], recipient)
 
-  const tx = new Transaction();
-console.log("Creating test transaction FROM aliased address:", aliasedAddress);
-  tx.setSender(aliasedAddress);   // tx is FROM the aliased address
-  tx.setGasOwner(aliasedAddress); // gas also paid by it → one alias sig covers both
-
-  tx.transferObjects([coinWithBalance({ balance: 100 })], recipient);
-
-  console.log("Signing test transaction with alias keypair:", aliasKeypair.getPublicKey().toSuiAddress());
+  console.log(
+    'Signing test transaction with alias keypair:',
+    aliasKeypair.getPublicKey().toSuiAddress(),
+  )
 
   // sign() needs the client to resolve gas coins / object versions.
-  const { bytes, signature } = await tx.sign({ client, signer: aliasKeypair });
-
+  const { bytes, signature } = await tx.sign({ client, signer: aliasKeypair })
 
   return client.executeTransaction({
     transaction: fromBase64(bytes),
     signatures: [signature],
-  });
+  })
 }

@@ -1,124 +1,123 @@
-import { Flex } from "@radix-ui/themes";
-
 import {
   useCurrentAccount,
   useCurrentClient,
   useDAppKit,
-} from "@mysten/dapp-kit-react";
-import { dAppKit as dAppKitInstance } from "../dappKit";
+} from '@mysten/dapp-kit-react'
+import { fromBase64 } from '@mysten/sui/utils'
 import {
   verifyPersonalMessageSignature,
   verifyTransactionSignature,
-} from "@mysten/sui/verify";
-import { fromBase64 } from "@mysten/sui/utils";
+} from '@mysten/sui/verify'
+import { Flex } from '@radix-ui/themes'
+import { dAppKit as dAppKitInstance } from '../dappKit'
 
-import { createTestTransaction } from "../transactions/createTestTransaction";
+import { createTestTransaction } from '../transactions/createTestTransaction'
 
 export function WalletActions() {
   /** STEP 3 — useCurrentAccount() (@mysten/dapp-kit-react) → account for wallet status block. */
-  const account = useCurrentAccount();
+  const account = useCurrentAccount()
 
-  const dappKit = useDAppKit(dAppKitInstance);
-  const currentClient = useCurrentClient({ dAppKit: dappKit });
+  const dappKit = useDAppKit(dAppKitInstance)
+  const currentClient = useCurrentClient({ dAppKit: dappKit })
 
   return (
-     <Flex
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "10px",
-          justifyContent: "space-between",
+    <Flex
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px',
+        justifyContent: 'space-between',
+      }}
+    >
+      <button
+        onClick={async () => {
+          if (!account?.address) {
+            return
+          }
+
+          const personalMessage = new TextEncoder().encode('Hello, world!')
+          await dappKit
+            .signPersonalMessage({
+              message: personalMessage,
+            })
+            .then(async (signature) => {
+              console.log(signature)
+              console.log('account?.address', account?.address)
+
+              verifyPersonalMessageSignature(
+                personalMessage,
+                signature.signature,
+                {
+                  client: currentClient,
+                },
+              )
+                .then((publicKey) => {
+                  console.log(publicKey, account?.address)
+                  console.log(publicKey.verifyAddress(account?.address))
+                })
+                .catch((error) => {
+                  console.error(error)
+                })
+            })
         }}
       >
-        <button
-          onClick={async () => {
-            if (!account?.address) {
-              return;
-            }
+        Sign personal message
+      </button>
 
-            const personalMessage = new TextEncoder().encode("Hello, world!");
-            await dappKit
-              .signPersonalMessage({
-                message: personalMessage,
-              })
-              .then(async (signature) => {
-                console.log(signature);
-                console.log("account?.address", account?.address);
+      <button
+        onClick={async () => {
+          if (!account?.address) {
+            console.error('Connect wallet first')
+            return
+          }
 
-                verifyPersonalMessageSignature(
-                  personalMessage,
-                  signature.signature,
-                  {
-                    client: currentClient,
-                  },
-                )
-                  .then((publicKey) => {
-                    console.log(publicKey, account?.address);
-                    console.log(publicKey.verifyAddress(account?.address));
-                  })
-                  .catch((error) => {
-                    console.error(error);
-                  });
-              });
-          }}
-        >
-          Sign personal message
-        </button>
+          const transaction = createTestTransaction(account.address)
 
-        <button
-          onClick={async () => {
-            if (!account?.address) {
-              console.error("Connect wallet first");
-              return;
-            }
+          dappKit
+            .signTransaction({
+              transaction,
+            })
+            .then(async (signedTx) => {
+              const verify = verifyTransactionSignature(
+                fromBase64(signedTx.bytes),
+                signedTx.signature,
+                {
+                  client: currentClient,
+                },
+              )
+              console.log(verify)
+            })
+            .catch((error) => {
+              console.error(error)
+            })
+        }}
+      >
+        Sign-only transaction
+      </button>
 
-            const transaction = createTestTransaction(account.address);
+      <button
+        onClick={async () => {
+          if (!account?.address) {
+            console.error('Connect wallet first')
+            return
+          }
 
-            dappKit
-              .signTransaction({
-                transaction,
-              })
-              .then(async (signedTx) => {
-                const verify = verifyTransactionSignature(
-                  fromBase64(signedTx.bytes),
-                  signedTx.signature,
-                  {
-                    client: currentClient,
-                  },
-                );
-                console.log(verify);
-              })
-              .catch((error) => {
-                console.error(error);
-              });
-          }}
-        >
-          Sign-only transaction
-        </button>
+          const transaction = createTestTransaction(account.address)
 
-        <button
-          onClick={async () => {
-            if (!account?.address) {
-              console.error("Connect wallet first");
-              return;
-            }
-
-            const transaction = createTestTransaction(account.address);
-
-            dappKit
-              .signAndExecuteTransaction({
-                transaction,
-              })
-              .then(async (signature) => {
-                console.log(signature);
-              })
-              .catch((error) => {
-                console.error(error);
-              });
-          }}
-        >
-          Sign and execute test transactions
-        </button>
-      </Flex>
-  );
+          dappKit
+            .signAndExecuteTransaction({
+              transaction,
+            })
+            .then(async (signature) => {
+              console.log(signature)
+            })
+            .catch((error) => {
+              console.error(error)
+            })
+        }}
+      >
+        Sign and execute test transactions
+      </button>
+    </Flex>
+  )
 }

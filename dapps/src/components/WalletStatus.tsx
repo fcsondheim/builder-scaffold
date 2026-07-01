@@ -1,10 +1,10 @@
-import { Box, Container, Flex, Text } from "@radix-ui/themes";
-import { AssemblyInfo } from "./AssemblyInfo";
-import { useCurrentAccount } from "@mysten/dapp-kit-react";
+import { useCurrentAccount } from '@mysten/dapp-kit-react'
+import { Box, Container, Flex, Text } from '@radix-ui/themes'
+import { AssemblyInfo } from './AssemblyInfo'
 
 export function WalletStatus() {
   /** STEP 3 — useCurrentAccount() (@mysten/dapp-kit-react) → account for wallet status block. */
-  const account = useCurrentAccount();
+  const account = useCurrentAccount()
 
   return (
     <Container my="2">
@@ -22,5 +22,5 @@ export function WalletStatus() {
 
       <AssemblyInfo />
     </Container>
-  );
+  )
 }
