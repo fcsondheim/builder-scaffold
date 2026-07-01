@@ -1,7 +1,15 @@
-import { Box, Container, Flex, Heading } from "@radix-ui/themes";
-import { WalletStatus } from "./WalletStatus";
+import { Box, Flex, Heading } from "@radix-ui/themes";
+import { WalletStatus } from "./components/WalletStatus";
 import { abbreviateAddress, useConnection } from "@evefrontier/dapp-kit";
-import { useCurrentAccount } from "@mysten/dapp-kit-react";
+import {
+  useCurrentAccount,
+  useCurrentNetwork,
+  useDAppKit,
+} from "@mysten/dapp-kit-react";
+import { dAppKit as dAppKitInstance } from "./dappKit";
+import { NETWORKS } from "./networks";
+import { WalletActions } from "./components/WalletActions";
+import { AddressAlias } from "./components/AddressAlias";
 
 function App() {
   /**
@@ -13,7 +21,11 @@ function App() {
    * (@evefrontier/dapp-kit) for display.
    */
   const { handleConnect, handleDisconnect } = useConnection();
-  const account = useCurrentAccount();
+  const dappKit = useDAppKit(dAppKitInstance);
+  const account = useCurrentAccount({ dAppKit: dappKit });
+  const currentNetwork = useCurrentNetwork({ dAppKit: dappKit });
+
+  console.log("account", account);
 
   return (
     <Box style={{ padding: "20px" }}>
@@ -38,8 +50,30 @@ function App() {
           {account ? abbreviateAddress(account?.address) : "Connect Wallet"}
         </button>
       </Flex>
+
+      <Flex
+        className="network-switch"
+        role="group"
+        aria-label="Network mode"
+      >
+        {NETWORKS.map((network) => (
+          <button
+            key={network}
+            className="network-switch__button"
+            aria-pressed={currentNetwork === network}
+            onClick={() => dappKit.switchNetwork(network)}
+          >
+            {network}
+          </button>
+        ))}
+      </Flex>
+
       {/* STEP 3 — Same hooks (useConnection, useCurrentAccount) drive WalletStatus; state stays in sync. */}
       <WalletStatus />
+
+        <WalletActions />
+
+        <AddressAlias />
     </Box>
   );
 }

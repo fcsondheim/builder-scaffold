@@ -1,21 +1,11 @@
 import {
-  // Core fetch functions
-  executeGraphQLQuery, // Raw GraphQL execution
-  getObjectByAddress, // Object with BCS data
   getObjectWithJson, // Object with JSON contents
-  getObjectWithDynamicFields, // Object + dynamic fields
 
   // Assembly + Owner (most useful for EVE)
   getAssemblyWithOwner, // Assembly + character info in one call
-  getObjectAndCharacterOwner, // Lower-level version
 
   // Ownership queries
   getOwnedObjectsByType, // Objects of type owned by address
-  getOwnedObjectsByPackage, // Objects from package owned by address
-
-  // Type-based queries
-  getObjectsByType, // All objects of a type (paginated)
-  getSingletonObjectByType, // First object of a type
 
   // Transformation functions
   transformToAssembly,
@@ -29,7 +19,7 @@ import {
  */
 async function fetchAssemblyInfo(assemblyId: string) {
   // 1. Fetch raw data from GraphQL
-  const { moveObject, character } = await getAssemblyWithOwner(assemblyId);
+  const { moveObject, assemblyOwner } = await getAssemblyWithOwner(assemblyId);
 
   if (!moveObject) {
     console.error("Assembly not found");
@@ -39,15 +29,15 @@ async function fetchAssemblyInfo(assemblyId: string) {
   // 2. Access raw JSON data directly
   const rawJson = moveObject.contents.json;
   console.log("Raw assembly data:", rawJson);
-  console.log("Character owner:", character);
+  console.log("Character owner:", assemblyOwner);
 
   // 3. Or transform to typed Assembly object
   const assembly = await transformToAssembly(assemblyId, moveObject, {
-    character,
+    character: assemblyOwner,
   });
   console.log("Transformed assembly:", assembly);
 
-  return { assembly, character };
+  return { assembly, character: assemblyOwner };
 }
 
 /** STEP 5 — getObjectWithJson() for object by ID with JSON. */
@@ -78,4 +68,51 @@ async function fetchUserAssemblies(
   return objectAddresses;
 }
 
-export { fetchAssemblyInfo, fetchObjectData, fetchUserAssemblies };
+import type { SuiGrpcClient } from "@mysten/sui/grpc";
+import { ADDRESS_ALIASES_TYPE } from "./transactions/addressAliasTransactions";
+
+export interface AddressAliasesInfo {
+  /** true if the address has an AddressAliases object (aliasing enabled). */
+  enabled: boolean;
+  /** the AddressAliases object id, when enabled. */
+  objectId?: string;
+  /** the current alias addresses. */
+  aliases: string[];
+}
+
+/**
+ * Read the caller's AddressAliases owned object via listOwnedObjects (its id isn't
+ * known ahead of time — it's minted by `enable`). Returns enabled=false when absent.
+ *
+ * ⚠️ The shape of `json` depends on the Move struct — parsing is defensive. Confirm
+ * the actual field name once the module ABI is known.
+ */
+async function getAddressAliases(
+  client: SuiGrpcClient,
+  owner: string,
+): Promise<AddressAliasesInfo> {
+  const result = await client.listOwnedObjects({
+    owner,
+    type: ADDRESS_ALIASES_TYPE,
+    include: { json: true },
+  });
+
+  const object = result.objects[0];
+
+  if (!object) {
+    return { enabled: false, aliases: [] };
+  }
+
+  const json = object.json as Record<string, unknown> | undefined;
+  const raw = json?.aliases?.contents;
+  const aliases = Array.isArray(raw) ? (raw as string[]) : [];
+
+  return { enabled: true, objectId: object.objectId, aliases };
+}
+
+export {
+  fetchAssemblyInfo,
+  fetchObjectData,
+  fetchUserAssemblies,
+  getAddressAliases,
+};

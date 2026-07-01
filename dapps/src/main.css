@@ -17,7 +17,7 @@ body {
   font-weight: 300;
   font-size: 16px;
   line-height: 150%;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   color: var(--color-text);
   background-color: var(--color-background);
   margin: 0;
@@ -41,7 +41,7 @@ p, span, label, .body-text {
   font-weight: 300;
   font-size: 1rem;
   margin: 0 0 8px 0;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   color: var(--color-text);
 }
 
@@ -55,11 +55,37 @@ button {
   font-weight: 300;
   font-size: 16px;
   line-height: 150%;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   background-color: var(--color-button-background);
   border: none;
   padding: 10px 20px;
   border-radius: 5px;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.network-switch {
+  display: inline-flex;
+  gap: 0;
+  margin: 12px 16px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.network-switch__button {
+  min-width: 104px;
+  border-radius: 0;
+  border-right: 1px solid var(--color-border);
+}
+
+.network-switch__button:last-child {
+  border-right: none;
+}
+
+.network-switch__button[aria-pressed="true"] {
+  background-color: var(--color-text);
+  color: var(--color-background);
 }
 
 .divider {
