@@ -169,7 +169,7 @@ export function AddressAlias() {
           <Flex style={{ gap: '8px' }}>
             <input
               type="text"
-              placeholder="0x… alias address"
+              placeholder="0x… alias Sui address"
               value={newAlias}
               onChange={(e) => setNewAlias(e.target.value)}
               disabled={disabled}
