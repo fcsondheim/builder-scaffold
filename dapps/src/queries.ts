@@ -101,7 +101,8 @@ async function getAddressAliases(
   }
 
   const json = object.json as Record<string, unknown> | undefined
-  const raw = json?.aliases?.contents
+  const aliasesField = json?.aliases as { contents?: unknown } | undefined
+  const raw = aliasesField?.contents
   const aliases = Array.isArray(raw) ? (raw as string[]) : []
 
   return { enabled: true, objectId: object.objectId, aliases }
