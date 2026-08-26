@@ -12,6 +12,7 @@ export default defineConfig({
 			"react/jsx-runtime",
 			"@mysten/dapp-kit-core",
 			"@mysten/dapp-kit-react",
+			"@tanstack/react-query",
 		],
 	},
 });
