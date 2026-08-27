@@ -4,10 +4,12 @@ import {
   useDAppKit,
 } from '@mysten/dapp-kit-react'
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519'
+import type { PasskeyKeypair } from '@mysten/sui/keypairs/passkey'
 import { isValidSuiAddress } from '@mysten/sui/utils'
 import { Button, Container, Flex } from '@radix-ui/themes'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { dAppKit as dAppKitInstance } from '../dappKit'
+import { recoverPasskeyKeypair } from '../passkey'
 import { getAddressAliases } from '../queries'
 import {
   addAliasTransaction,
@@ -37,6 +39,14 @@ export function AddressAlias() {
   const aliasIsInCurrentAliases = aliases.includes(
     aliasKeypair.getPublicKey().toSuiAddress(),
   )
+
+  // Recovered passkey signer. The keypair itself is non-serializable, so it lives in
+  // a ref; only its derived address is mirrored into state for rendering.
+  const passkeyKeypairRef = useRef<PasskeyKeypair | null>(null)
+  const [passkeyAddress, setPasskeyAddress] = useState<string | undefined>()
+
+  const passkeyIsInCurrentAliases =
+    !!passkeyAddress && aliases.includes(passkeyAddress)
 
   const refresh = useCallback(async () => {
     if (!account?.address) {
@@ -113,6 +123,51 @@ export function AddressAlias() {
     } catch (e) {
       console.error(e)
       setError(e instanceof Error ? e.message : 'Failed to add alias')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRecoverPasskey = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const keypair = await recoverPasskeyKeypair()
+      passkeyKeypairRef.current = keypair
+      setPasskeyAddress(keypair.getPublicKey().toSuiAddress())
+    } catch (e) {
+      console.error(e)
+      setError(e instanceof Error ? e.message : 'Failed to recover passkey')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSignWithPasskey = async () => {
+    if (!account?.address) {
+      setError('Connect wallet first')
+      return
+    }
+    if (!passkeyKeypairRef.current) {
+      setError('Recover a passkey first')
+      return
+    }
+    if (aliases.length === 0) {
+      setError('No aliases to send to')
+      return
+    }
+    setLoading(true)
+    setError(null)
+    try {
+      await aliasSignedTestTransaction(
+        currentClient,
+        account.address,
+        passkeyKeypairRef.current,
+        aliases[0],
+      )
+    } catch (e) {
+      console.error(e)
+      setError(e instanceof Error ? e.message : 'Failed to sign with passkey')
     } finally {
       setLoading(false)
     }
@@ -212,6 +267,33 @@ export function AddressAlias() {
               Test transaction when alias{' '}
               {aliasIsInCurrentAliases ? 'is registered' : 'is not registered'}
             </Button>
+          </Flex>
+
+          <Flex direction="column" style={{ gap: '8px' }}>
+            <Container>
+              Signing for an aliased transaction with a passkey
+              {passkeyAddress ? (
+                <div style={{ wordBreak: 'break-all' }}>
+                  Recovered passkey address: {passkeyAddress} —{' '}
+                  {passkeyIsInCurrentAliases
+                    ? 'is registered'
+                    : 'is not registered'}
+                </div>
+              ) : (
+                <div>No passkey recovered yet.</div>
+              )}
+            </Container>
+            <Flex style={{ gap: '8px' }}>
+              <Button onClick={handleRecoverPasskey} disabled={disabled}>
+                Recover passkey
+              </Button>
+              <Button
+                onClick={handleSignWithPasskey}
+                disabled={disabled || !passkeyAddress || aliases.length === 0}
+              >
+                Sign aliased transaction with passkey
+              </Button>
+            </Flex>
           </Flex>
         </>
       )}

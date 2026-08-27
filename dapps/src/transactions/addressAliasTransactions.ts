@@ -1,5 +1,5 @@
+import type { Signer } from '@mysten/sui/cryptography'
 import type { SuiGrpcClient } from '@mysten/sui/grpc'
-import type { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519'
 import { coinWithBalance, Transaction } from '@mysten/sui/transactions'
 import { fromBase64 } from '@mysten/sui/utils'
 
@@ -74,8 +74,8 @@ export function addAliasTransaction(
  */
 export async function aliasSignedTestTransaction(
   client: SuiGrpcClient,
-  aliasedAddress: string, // the address whose coins are spent (NOT the keypair's address),
-  aliasKeypair: Ed25519Keypair, // the private key of the alias (Ed25519Keypair or base58 string)
+  aliasedAddress: string, // the address whose coins are spent (NOT the signer's address),
+  aliasSigner: Signer, // any Signer registered as an alias (Ed25519Keypair, PasskeyKeypair, …)
   recipient: string,
 ) {
   const tx = new Transaction()
@@ -86,12 +86,12 @@ export async function aliasSignedTestTransaction(
   tx.transferObjects([coinWithBalance({ balance: 100 })], recipient)
 
   console.log(
-    'Signing test transaction with alias keypair:',
-    aliasKeypair.getPublicKey().toSuiAddress(),
+    'Signing test transaction with alias signer:',
+    aliasSigner.getPublicKey().toSuiAddress(),
   )
 
   // sign() needs the client to resolve gas coins / object versions.
-  const { bytes, signature } = await tx.sign({ client, signer: aliasKeypair })
+  const { bytes, signature } = await tx.sign({ client, signer: aliasSigner })
 
   return client.executeTransaction({
     transaction: fromBase64(bytes),
