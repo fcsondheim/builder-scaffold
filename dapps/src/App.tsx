@@ -6,6 +6,7 @@ import {
 } from '@mysten/dapp-kit-react'
 import { Box, Flex, Heading } from '@radix-ui/themes'
 import { AddressAlias } from './components/AddressAlias'
+import { NotificationToast } from './components/NotificationToast'
 import { WalletActions } from './components/WalletActions'
 import { WalletStatus } from './components/WalletStatus'
 import { dAppKit as dAppKitInstance } from './dappKit'
@@ -70,6 +71,8 @@ function App() {
       <WalletActions />
 
       <AddressAlias />
+
+      <NotificationToast />
     </Box>
   )
 }

@@ -70,31 +70,34 @@ export function addAliasTransaction(
 
 /**
  * Build, sign, and execute a test transfer that is FROM `aliasedAddress`
- * but SIGNED by one of its alias keypairs.
+ * but SIGNED by one of its alias keypairs. Returns the transaction digest on
+ * success; throws with the failed digest/status otherwise.
  */
 export async function aliasSignedTestTransaction(
   client: SuiGrpcClient,
   aliasedAddress: string, // the address whose coins are spent (NOT the signer's address),
   aliasSigner: Signer, // any Signer registered as an alias (Ed25519Keypair, PasskeyKeypair, …)
   recipient: string,
-) {
+): Promise<string> {
   const tx = new Transaction()
-  console.log('Creating test transaction FROM aliased address:', aliasedAddress)
   tx.setSender(aliasedAddress) // tx is FROM the aliased address
   tx.setGasOwner(aliasedAddress) // gas also paid by it → one alias sig covers both
 
   tx.transferObjects([coinWithBalance({ balance: 100 })], recipient)
 
-  console.log(
-    'Signing test transaction with alias signer:',
-    aliasSigner.getPublicKey().toSuiAddress(),
-  )
-
   // sign() needs the client to resolve gas coins / object versions.
   const { bytes, signature } = await tx.sign({ client, signer: aliasSigner })
 
-  return client.executeTransaction({
+  const result = await client.executeTransaction({
     transaction: fromBase64(bytes),
     signatures: [signature],
   })
+
+  if (result.$kind !== 'Transaction') {
+    const { digest, status } = result.FailedTransaction
+    const reason = status.error ? JSON.stringify(status.error) : 'unknown error'
+    throw new Error(`Transaction failed (${digest}): ${reason}`)
+  }
+
+  return result.Transaction.digest
 }

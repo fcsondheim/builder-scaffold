@@ -1,6 +1,5 @@
 import {
   BrowserPasskeyProvider,
-  findCommonPublicKey,
   PasskeyKeypair,
 } from '@mysten/sui/keypairs/passkey'
 
@@ -28,22 +27,26 @@ export function makePasskeyProvider(): BrowserPasskeyProvider {
 }
 
 /**
- * Recover an already-registered passkey into a signable `PasskeyKeypair`.
+ * Recover an already-registered passkey into a signable `PasskeyKeypair`, given the
+ * Sui address it is registered under (its alias address).
  *
- * WebAuthn returns 2–4 candidate public keys per signature, so we sign two distinct
- * messages and take the common key to uniquely identify the passkey. Must be called
- * from a direct user gesture (button click) — each `signAndRecover` triggers a
- * WebAuthn prompt.
+ * A single `signAndRecover` returns up to 4 candidate public keys; because we already
+ * know the target address we pick the candidate whose derived address matches, instead
+ * of signing a second message and disambiguating with `findCommonPublicKey`. This is
+ * the "check against known key" shortcut the SDK docstring calls out — one WebAuthn
+ * prompt instead of two. Must be called from a direct user gesture (button click).
  */
-export async function recoverPasskeyKeypair(): Promise<PasskeyKeypair> {
+export async function recoverPasskeyForAlias(
+  knownAlias: string,
+): Promise<PasskeyKeypair> {
   const provider = makePasskeyProvider()
 
-  const m1 = new TextEncoder().encode('Sui alias passkey recovery 1')
-  const m2 = new TextEncoder().encode('Sui alias passkey recovery 2')
+  const message = new TextEncoder().encode('Sui alias passkey recovery')
+  const candidates = await PasskeyKeypair.signAndRecover(provider, message)
 
-  const pks1 = await PasskeyKeypair.signAndRecover(provider, m1)
-  const pks2 = await PasskeyKeypair.signAndRecover(provider, m2)
-
-  const commonPk = findCommonPublicKey(pks1, pks2)
-  return new PasskeyKeypair(commonPk.toRawBytes(), provider)
+  const match = candidates.find((pk) => pk.toSuiAddress() === knownAlias)
+  if (!match) {
+    throw new Error('No passkey candidate matches the registered alias address')
+  }
+  return new PasskeyKeypair(match.toRawBytes(), provider)
 }

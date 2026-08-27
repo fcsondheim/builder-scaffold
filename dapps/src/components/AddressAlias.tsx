@@ -1,21 +1,20 @@
+import { Severity, useNotification } from '@evefrontier/dapp-kit'
 import {
   useCurrentAccount,
   useCurrentClient,
   useDAppKit,
 } from '@mysten/dapp-kit-react'
-import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519'
-import type { PasskeyKeypair } from '@mysten/sui/keypairs/passkey'
 import { isValidSuiAddress } from '@mysten/sui/utils'
-import { Button, Container, Flex } from '@radix-ui/themes'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Flex } from '@radix-ui/themes'
+import { useCallback, useEffect, useState } from 'react'
 import { dAppKit as dAppKitInstance } from '../dappKit'
-import { recoverPasskeyKeypair } from '../passkey'
 import { getAddressAliases } from '../queries'
 import {
   addAliasTransaction,
-  aliasSignedTestTransaction,
   enableAliasTransaction,
 } from '../transactions/addressAliasTransactions'
+import { AliasPasskeyTest } from './AliasPasskeyTest'
+import { AliasPrivateKeyTest } from './AliasPrivateKeyTest'
 
 const MAX_ALIASES = 8
 
@@ -23,36 +22,32 @@ export function AddressAlias() {
   const account = useCurrentAccount()
   const dappKit = useDAppKit(dAppKitInstance)
   const currentClient = useCurrentClient({ dAppKit: dappKit })
+  const { notify } = useNotification()
 
   const [enabled, setEnabled] = useState(false)
   const [objectId, setObjectId] = useState<string | undefined>()
   const [aliases, setAliases] = useState<string[]>([])
+  const [selectedAlias, setSelectedAlias] = useState<string | undefined>()
   const [newAlias, setNewAlias] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [activeAliasPrivKey, setActiveAliasPrivKey] = useState<string>(
-    'suiprivkey1qr2xkm8tlm2cvzhfnxp8f3nl24w0afzjuw2hndp4v97uca0kwyvasssaxkt',
+
+  const notifyError = useCallback(
+    (fallback: string, e: unknown) => {
+      console.error(e)
+      notify({
+        type: Severity.Error,
+        message: e instanceof Error ? e.message : fallback,
+      })
+    },
+    [notify],
   )
-
-  const aliasKeypair = Ed25519Keypair.fromSecretKey(activeAliasPrivKey)
-
-  const aliasIsInCurrentAliases = aliases.includes(
-    aliasKeypair.getPublicKey().toSuiAddress(),
-  )
-
-  // Recovered passkey signer. The keypair itself is non-serializable, so it lives in
-  // a ref; only its derived address is mirrored into state for rendering.
-  const passkeyKeypairRef = useRef<PasskeyKeypair | null>(null)
-  const [passkeyAddress, setPasskeyAddress] = useState<string | undefined>()
-
-  const passkeyIsInCurrentAliases =
-    !!passkeyAddress && aliases.includes(passkeyAddress)
 
   const refresh = useCallback(async () => {
     if (!account?.address) {
       setEnabled(false)
       setObjectId(undefined)
       setAliases([])
+      setSelectedAlias(undefined)
       return
     }
     try {
@@ -60,11 +55,14 @@ export function AddressAlias() {
       setEnabled(info.enabled)
       setObjectId(info.objectId)
       setAliases(info.aliases)
+      // Keep the current selection if it still exists, else default to the first.
+      setSelectedAlias((prev) =>
+        prev && info.aliases.includes(prev) ? prev : info.aliases[0],
+      )
     } catch (e) {
-      console.error(e)
-      setError(e instanceof Error ? e.message : 'Failed to read aliases')
+      notifyError('Failed to read aliases', e)
     }
-  }, [account?.address, currentClient])
+  }, [account?.address, currentClient, notifyError])
 
   useEffect(() => {
     refresh()
@@ -72,19 +70,17 @@ export function AddressAlias() {
 
   const handleEnable = async () => {
     if (!account?.address) {
-      setError('Connect wallet first')
+      notify({ type: Severity.Error, message: 'Connect wallet first' })
       return
     }
     setLoading(true)
-    setError(null)
     try {
       await dappKit.signAndExecuteTransaction({
         transaction: enableAliasTransaction(),
       })
       await refresh()
     } catch (e) {
-      console.error(e)
-      setError(e instanceof Error ? e.message : 'Failed to enable aliasing')
+      notifyError('Failed to enable aliasing', e)
     } finally {
       setLoading(false)
     }
@@ -92,28 +88,30 @@ export function AddressAlias() {
 
   const handleAdd = async () => {
     if (!account?.address) {
-      setError('Connect wallet first')
+      notify({ type: Severity.Error, message: 'Connect wallet first' })
       return
     }
     if (!objectId) {
-      setError('Enable aliasing first')
+      notify({ type: Severity.Error, message: 'Enable aliasing first' })
       return
     }
     const alias = newAlias.trim()
     if (!isValidSuiAddress(alias)) {
-      setError('Not a valid Sui address')
+      notify({ type: Severity.Error, message: 'Not a valid Sui address' })
       return
     }
     if (aliases.includes(alias)) {
-      setError('Address is already an alias')
+      notify({ type: Severity.Error, message: 'Address is already an alias' })
       return
     }
     if (aliases.length >= MAX_ALIASES) {
-      setError(`Maximum of ${MAX_ALIASES} aliases reached`)
+      notify({
+        type: Severity.Error,
+        message: `Maximum of ${MAX_ALIASES} aliases reached`,
+      })
       return
     }
     setLoading(true)
-    setError(null)
     try {
       await dappKit.signAndExecuteTransaction({
         transaction: addAliasTransaction(objectId, alias),
@@ -121,53 +119,7 @@ export function AddressAlias() {
       setNewAlias('')
       await refresh()
     } catch (e) {
-      console.error(e)
-      setError(e instanceof Error ? e.message : 'Failed to add alias')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleRecoverPasskey = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const keypair = await recoverPasskeyKeypair()
-      passkeyKeypairRef.current = keypair
-      setPasskeyAddress(keypair.getPublicKey().toSuiAddress())
-    } catch (e) {
-      console.error(e)
-      setError(e instanceof Error ? e.message : 'Failed to recover passkey')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleSignWithPasskey = async () => {
-    if (!account?.address) {
-      setError('Connect wallet first')
-      return
-    }
-    if (!passkeyKeypairRef.current) {
-      setError('Recover a passkey first')
-      return
-    }
-    if (aliases.length === 0) {
-      setError('No aliases to send to')
-      return
-    }
-    setLoading(true)
-    setError(null)
-    try {
-      await aliasSignedTestTransaction(
-        currentClient,
-        account.address,
-        passkeyKeypairRef.current,
-        aliases[0],
-      )
-    } catch (e) {
-      console.error(e)
-      setError(e instanceof Error ? e.message : 'Failed to sign with passkey')
+      notifyError('Failed to add alias', e)
     } finally {
       setLoading(false)
     }
@@ -206,18 +158,35 @@ export function AddressAlias() {
         <>
           <div>
             <strong>
-              Current aliases ({aliases.length}/{MAX_ALIASES})
+              Current aliases ({aliases.length}/{MAX_ALIASES}) — select the
+              passkey alias
             </strong>
             {aliases.length === 0 ? (
               <p>No aliases yet.</p>
             ) : (
-              <ul>
+              <Flex direction="column" style={{ gap: '4px', marginTop: '4px' }}>
                 {aliases.map((a) => (
-                  <li key={a} style={{ wordBreak: 'break-all' }}>
+                  <label
+                    key={a}
+                    style={{
+                      display: 'flex',
+                      gap: '8px',
+                      alignItems: 'center',
+                      wordBreak: 'break-all',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="selected-alias"
+                      value={a}
+                      checked={selectedAlias === a}
+                      onChange={() => setSelectedAlias(a)}
+                    />
                     {a}
-                  </li>
+                  </label>
                 ))}
-              </ul>
+              </Flex>
             )}
           </div>
 
@@ -238,67 +207,19 @@ export function AddressAlias() {
             </button>
           </Flex>
 
-          <Flex>
-            <Container>
-              Signing for an aliased transaction as{' '}
-              {aliasKeypair.getPublicKey().toSuiAddress()}
-              <Flex style={{ gap: '8px' }}>
-                Active alias private key:{' '}
-                <input
-                  type="text"
-                  placeholder="Active Alias Private Key"
-                  value={activeAliasPrivKey}
-                  onChange={(e) => setActiveAliasPrivKey(e.target.value)}
-                  disabled={disabled}
-                  style={{ flex: 1 }}
-                />
-              </Flex>
-            </Container>
-            <Button
-              onClick={async () =>
-                aliasSignedTestTransaction(
-                  currentClient,
-                  account.address,
-                  aliasKeypair,
-                  aliases[0],
-                )
-              }
-            >
-              Test transaction when alias{' '}
-              {aliasIsInCurrentAliases ? 'is registered' : 'is not registered'}
-            </Button>
-          </Flex>
+          <AliasPasskeyTest
+            client={currentClient}
+            aliasedAddress={account.address}
+            selectedAlias={selectedAlias}
+          />
 
-          <Flex direction="column" style={{ gap: '8px' }}>
-            <Container>
-              Signing for an aliased transaction with a passkey
-              {passkeyAddress ? (
-                <div style={{ wordBreak: 'break-all' }}>
-                  Recovered passkey address: {passkeyAddress} —{' '}
-                  {passkeyIsInCurrentAliases
-                    ? 'is registered'
-                    : 'is not registered'}
-                </div>
-              ) : (
-                <div>No passkey recovered yet.</div>
-              )}
-            </Container>
-            <Flex style={{ gap: '8px' }}>
-              <Button onClick={handleRecoverPasskey} disabled={disabled}>
-                Recover passkey
-              </Button>
-              <Button
-                onClick={handleSignWithPasskey}
-                disabled={disabled || !passkeyAddress || aliases.length === 0}
-              >
-                Sign aliased transaction with passkey
-              </Button>
-            </Flex>
-          </Flex>
+          <AliasPrivateKeyTest
+            client={currentClient}
+            aliasedAddress={account.address}
+            aliases={aliases}
+          />
         </>
       )}
-
-      {error && <p style={{ color: 'crimson', margin: 0 }}>{error}</p>}
     </Flex>
   )
 }
