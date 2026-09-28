@@ -22,3 +22,6 @@ dapps/frontend
 move-contracts/**/build/**/
 
 **/dist/
+
+# Participant publish metadata (each attendee publishes their own package)
+move-contracts/**/Published.toml
