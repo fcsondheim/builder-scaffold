@@ -30,7 +30,10 @@ export function AddressAlias() {
   const [newAlias, setNewAlias] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeAliasPrivKey, setActiveAliasPrivKey] = useState<string>("suiprivkey1qr2xkm8tlm2cvzhfnxp8f3nl24w0afzjuw2hndp4v97uca0kwyvasssaxkt");
+  // A fresh throwaway alias key per session; paste your own to reuse an alias.
+  const [activeAliasPrivKey, setActiveAliasPrivKey] = useState<string>(() =>
+    new Ed25519Keypair().getSecretKey(),
+  );
 
   const aliasKeypair = Ed25519Keypair.fromSecretKey(activeAliasPrivKey);
 
